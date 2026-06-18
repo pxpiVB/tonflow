@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>CryptoVisit — Earn Crypto at Cafes</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <style>
+    :root {
+      --green: #35D07F;
+      --green-dark: #1A8F4E;
+      --bg: #0A1628;
+      --card: #112240;
+      --card2: #1A3460;
+      --text: #E8F4FF;
+      --muted: #8AA6C1;
+      --border: #1E3A5F;
+      --yellow: #FBCC5C;
+      --red: #FF6B6B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+    .logo-dot { width: 28px; height: 28px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .badge-minipay {
+      background: var(--green); color: #000; font-size: 11px; font-weight: 700;
+      padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;
+    }
+
+    /* ── PAGES ── */
+    #page-land, #page-claim { display: none; }
+    #page-land.active, #page-claim.active { display: block; }
+
+    /* ── LANDING ── */
+    .hero {
+      text-align: center; padding: 60px 24px 40px;
+    }
+    .hero h1 { font-size: 36px; font-weight: 800; line-height: 1.2; margin-bottom: 16px; }
+    .hero h1 span { color: var(--green); }
+    .hero p { color: var(--muted); font-size: 17px; max-width: 340px; margin: 0 auto 32px; line-height: 1.6; }
+    .hero-btn {
+      display: inline-block; background: var(--green); color: #000;
+      font-weight: 700; font-size: 16px; padding: 14px 36px;
+      border-radius: 100px; text-decoration: none; border: none; cursor: pointer;
+    }
+    .hero-btn:hover { background: #2fc172; }
+
+    .steps { padding: 0 24px 48px; max-width: 480px; margin: 0 auto; }
+    .steps h2 { font-size: 22px; font-weight: 700; margin-bottom: 24px; text-align: center; }
+    .step {
+      display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start;
+    }
+    .step-num {
+      width: 40px; height: 40px; min-width: 40px;
+      background: var(--card2); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--green); font-size: 16px;
+    }
+    .step-text h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .step-text p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+    .tokenomics {
+      background: var(--card); margin: 0 16px 32px; border-radius: 20px;
+      padding: 24px; border: 1px solid var(--border);
+    }
+    .tokenomics h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .tok-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+    }
+    .tok-row:last-child { border-bottom: none; }
+    .tok-row .label { color: var(--muted); }
+    .tok-row .value { font-weight: 600; }
+    .tok-row .value.green { color: var(--green); }
+
+    .cafe-cta {
+      background: linear-gradient(135deg, var(--card2), var(--card));
+      margin: 0 16px 40px; border-radius: 20px; padding: 24px;
+      border: 1px solid var(--border); text-align: center;
+    }
+    .cafe-cta h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .cafe-cta p { color: var(--muted); font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+    .cafe-cta a {
+      display: inline-block; border: 1px solid var(--green); color: var(--green);
+      font-weight: 600; font-size: 14px; padding: 10px 24px; border-radius: 100px;
+      text-decoration: none;
+    }
+
+    /* ── CLAIM PAGE ── */
+    .claim-wrap { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* MiniPay banner */
+    .minipay-banner {
+      background: linear-gradient(135deg, #0D7A45, #1A8F4E);
+      border-radius: 16px; padding: 16px 20px; margin-bottom: 24px;
+      display: flex; align-items: center; gap: 14px;
+      border: 1px solid #35D07F44;
+    }
+    .minipay-icon { font-size: 28px; }
+    .minipay-banner h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .minipay-banner p { font-size: 13px; color: #A8DFBD; }
+
+    /* Cafe card */
+    .cafe-card {
+      background: var(--card); border-radius: 20px; padding: 24px;
+      margin-bottom: 20px; border: 1px solid var(--border);
+      text-align: center;
+    }
+    .cafe-icon { font-size: 48px; margin-bottom: 12px; }
+    .cafe-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .cafe-card .cafe-addr { font-size: 12px; color: var(--muted); font-family: monospace; }
+    .cafe-visits { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .cafe-visits span { font-size: 13px; color: var(--muted); }
+    .cafe-visits strong { color: var(--green); }
+
+    /* Reward card */
+    .reward-card {
+      background: linear-gradient(135deg, #0D3D24, #123528);
+      border: 1px solid var(--green-dark); border-radius: 20px; padding: 20px;
+      margin-bottom: 20px; text-align: center;
+    }
+    .reward-big { font-size: 48px; font-weight: 800; color: var(--green); line-height: 1; }
+    .reward-label { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    /* Balance card */
+    .balance-card {
+      background: var(--card); border-radius: 16px; padding: 16px 20px;
+      margin-bottom: 20px; border: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .balance-card .label { font-size: 13px; color: var(--muted); }
+    .balance-card .amount { font-size: 20px; font-weight: 700; color: var(--green); }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%; background: var(--green); color: #000;
+      font-weight: 700; font-size: 17px; padding: 16px;
+      border-radius: 16px; border: none; cursor: pointer;
+      transition: background 0.2s; margin-bottom: 12px;
+    }
+    .btn-primary:hover:not(:disabled) { background: #2fc172; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      width: 100%; background: transparent; color: var(--text);
+      font-weight: 600; font-size: 15px; padding: 14px;
+      border-radius: 16px; border: 1px solid var(--border); cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .btn-secondary:hover { border-color: var(--green); color: var(--green); }
+
+    /* Status messages */
+    .msg {
+      padding: 12px 16px; border-radius: 12px; font-size: 14px;
+      margin-bottom: 16px; text-align: center; line-height: 1.5;
+    }
+    .msg.success { background: #0D3D2477; border: 1px solid var(--green); color: var(--green); }
+    .msg.error   { background: #3D0D0D77; border: 1px solid var(--red); color: var(--red); }
+    .msg.warn    { background: #3D2D0D77; border: 1px solid var(--yellow); color: var(--yellow); }
+    .msg.info    { background: var(--card); border: 1px solid var(--border); color: var(--muted); }
+
+    /* Cooldown */
+    .cooldown-ring {
+      width: 100px; height: 100px; border-radius: 50%;
+      border: 4px solid var(--border); border-top-color: var(--yellow);
+      margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; color: var(--yellow);
+    }
+
+    /* Network warning */
+    .network-warn {
+      background: #3D2D0D77; border: 1px solid var(--yellow); border-radius: 16px;
+      padding: 16px 20px; margin-bottom: 20px; text-align: center;
+    }
+    .network-warn p { color: var(--yellow); font-size: 14px; margin-bottom: 10px; }
+
+    /* Footer */
+    footer {
+      text-align: center; padding: 24px; color: var(--muted); font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--green); text-decoration: none; }
+
+    /* Spinner */
+    .spin {
+      display: inline-block; width: 18px; height: 18px;
+      border: 2px solid rgba(0,0,0,0.3); border-top-color: #000;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error page */
+    .err-page { text-align: center; padding: 80px 24px; }
+    .err-page .emoji { font-size: 64px; margin-bottom: 20px; }
+    .err-page h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .err-page p { color: var(--muted); font-size: 15px; }
+
+    /* TX hash */
+    .tx-hash { font-family: monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+    .tx-hash a { color: var(--green); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-dot">☕</div>
+    CryptoVisit
+  </div>
+  <div id="nav-right"></div>
+</nav>
+
+<!-- ═══════════════════════════════ LANDING PAGE ═══════════════════════════════ -->
+<div id="page-land">
+  <div class="hero">
+    <h1>Earn <span>crypto</span><br/>at your favorite<br/>cafes</h1>
+    <p>Scan a QR code, claim CVT tokens. Accumulate before the token launch.</p>
+  </div>
+
+  <div class="steps" style="max-width:480px;margin:0 auto;">
+    <h2>How it works</h2>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        <h3>Find the QR code</h3>
+        <p>Partner cafes hide a special QR code somewhere in their space. Find it!</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        <h3>Scan &amp; connect wallet</h3>
+        <p>Scan the QR with your phone. Connect your crypto wallet — takes 10 seconds.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        <h3>Earn CVT tokens</h3>
+        <p>10 CVT lands in your wallet instantly. Come back every 4 hours for more.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-text">
+        <h3>Hold or sell after TGE</h3>
+        <p>CVT is capped at 100M total. Early holders get the best price.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tokenomics">
+    <h2>CVT Tokenomics</h2>
+    <div class="tok-row">
+      <span class="label">Total supply</span>
+      <span class="value green">100,000,000 CVT</span>
+    </div>
+    <div class="tok-row">
+      <span class="label">Per visit</span>
+      <span class="value">10 CVT</span>
+    </div>
+    <div class="tok-row">
+      <span class="label">Cooldown</span>
+      <span class="value">4 hours</span>
+    </div>
+    <div class="tok-row">
+      <span class="label">Network</span>
+      <span class="value green">Celo ⚡</span>
+    </div>
+    <div class="tok-row">
+      <span class="label">Gas fee</span>
+      <span class="value">~$0.001</span>
+    </div>
+    <div class="tok-row">
+      <span class="label">TGE</span>
+      <span class="value">Uniswap v3</span>
+    </div>
+  </div>
+
+  <div class="cafe-cta">
+    <h2>Own a cafe? 🏪</h2>
+    <p>Register your venue and attract crypto-native customers. Setup takes 5 minutes and is completely free.</p>
+    <a href="mailto:hello@cryptovisit.xyz">Partner with us →</a>
+  </div>
+
+  <footer>
+    Built on <a href="https://celo.org" target="_blank">Celo</a> ·
+    <a href="https://celoscan.io" target="_blank" id="footer-contract">Contract</a> ·
+    <a href="https://github.com" target="_blank" id="footer-github">GitHub</a>
+  </footer>
+</div>
+
+<!-- ═══════════════════════════════ CLAIM PAGE ═══════════════════════════════ -->
+<div id="page-claim">
+  <div class="claim-wrap">
+
+    <!-- MiniPay banner (shown only in MiniPay) -->
+    <div class="minipay-banner" id="minipay-banner" style="display:none">
+      <div class="minipay-icon">📱</div>
+      <div>
+        <h3>MiniPay Detected!</h3>
+        <p>Ultra-low fees on Celo. Claim your tokens!</p>
+      </div>
+    </div>
+
+    <!-- Cafe card -->
+    <div class="cafe-card" id="cafe-card">
+      <div class="cafe-icon">☕</div>
+      <h2 id="cafe-name">Loading cafe...</h2>
+      <div class="cafe-addr" id="cafe-addr"></div>
+      <div class="cafe-visits" id="cafe-visits" style="display:none">
+        <span>Total visits: <strong id="total-visits">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Reward display -->
+    <div class="reward-card">
+      <div class="reward-big">+10</div>
+      <div class="reward-label">CVT tokens per visit</div>
+    </div>
+
+    <!-- Network warning -->
+    <div class="network-warn" id="network-warn" style="display:none">
+      <p>⚠️ Switch to Celo network to claim</p>
+      <button class="btn-primary" style="margin:0" onclick="switchToCelo()">Switch to Celo</button>
+    </div>
+
+    <!-- Messages -->
+    <div id="msg-area"></div>
+
+    <!-- Balance -->
+    <div class="balance-card" id="balance-card" style="display:none">
+      <div>
+        <div class="label">Your CVT Balance</div>
+        <div class="amount" id="balance-amount">0 CVT</div>
+      </div>
+      <div style="font-size:24px">🏆</div>
+    </div>
+
+    <!-- Cooldown display -->
+    <div id="cooldown-area" style="display:none; text-align:center; margin-bottom:20px;">
+      <div class="cooldown-ring" id="cooldown-ring">--:--</div>
+      <p style="color:var(--muted); font-size:14px;">Come back soon for more tokens</p>
+    </div>
+
+    <!-- Action buttons -->
+    <div id="action-area">
+      <button class="btn-primary" id="btn-connect" onclick="connectWallet()">
+        Connect Wallet
+      </button>
+      <button class="btn-primary" id="btn-claim" onclick="claimTokens()" style="display:none">
+        Claim 10 CVT Tokens
+      </button>
+    </div>
+
+    <!-- TX result -->
+    <div id="tx-area" style="display:none; margin-top:16px;">
+      <div class="msg success">
+        ✅ Tokens claimed! Transaction:<br/>
+        <div class="tx-hash"><a id="tx-link" href="#" target="_blank"></a></div>
+      </div>
+    </div>
+
+    <footer>
+      Built on <a href="https://celo.org" target="_blank">Celo</a> ·
+      <a href="/" >← More cafes</a>
+    </footer>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ SCRIPT ════════════════════════════════ -->
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// Replace this after deployment!
+const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const CELO_CHAIN_ID = 42220; // 0xA4EC
+const CELO_CHAIN = {
+  chainId: '0xA4EC',
+  chainName: 'Celo Mainnet',
+  nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+  rpcUrls: ['https://feth.celo.org'],
+  blockExplorerUrls: ['https://celoscan.io']
+};
+
+const ABI = [
+  "function claimVisit(address cafe) external",
+  "function balanceOf(address) view returns (uint256)",
+  "function cooldownRemaining(address visitor, address cafe) view returns (uint256)",
+  "function getCafe(address cafe) view returns (bool registered, string cafeName, uint256 totalVisits)",
+  "function totalSupply() view returns (uint256)"
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let provider, signer, contract, userAddress;
+let cafeAddress = null;
+let isMiniPay = false;
+let cooldownTimer = null;
+
+// ─── ROUTER ──────────────────────────────────────────────────────────────────
+function route() {
+  const params = new URLSearchParams(window.location.search);
+  cafeAddress = params.get('cafe');
+
+  if (cafeAddress && ethers.utils.isAddress(cafeAddress)) {
+    document.getElementById('page-claim').classList.add('active');
+    initClaimPage();
+  } else {
+    document.getElementById('page-land').classList.add('active');
+  }
+}
+
+// ─── LANDING INIT ────────────────────────────────────────────────────────────
+function initLanding() {
+  // Update footer links with actual contract address if set
+  if (CONTRACT_ADDRESS !== "0x0000000000000000000000000000000000000000") {
+    document.getElementById('footer-contract').href =
+      `https://celoscan.io/address/${CONTRACT_ADDRESS}`;
+  }
+}
+
+// ─── CLAIM PAGE INIT ─────────────────────────────────────────────────────────
+async function initClaimPage() {
+  // Show cafe address
+  document.getElementById('cafe-addr').textContent =
+    cafeAddress.slice(0,6) + '...' + cafeAddress.slice(-4);
+
+  // MiniPay detection
+  if (window.ethereum && window.ethereum.isMiniPay) {
+    isMiniPay = true;
+    document.getElementById('minipay-banner').style.display = 'flex';
+    document.getElementById('nav-right').innerHTML =
+      '<span class="badge-minipay">MiniPay</span>';
+    // Auto-connect in MiniPay
+    await connectWallet();
+  }
+
+  // Load cafe info from contract (read-only, no wallet needed)
+  await loadCafeInfo();
+}
+
+async function loadCafeInfo() {
+  try {
+    // Use public RPC for read-only calls
+    const readProvider = new ethers.providers.JsonRpcProvider('https://feth.celo.org');
+    const readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, readProvider);
+
+    const [registered, cafeName, totalVisits] = await readContract.getCafe(cafeAddress);
+
+    if (!registered) {
+      showPage('error', '❌ Cafe not found', 'This QR code is not registered in the system.');
+      return;
+    }
+
+    document.getElementById('cafe-name').textContent = cafeName || 'Partner Cafe';
+    document.getElementById('total-visits').textContent = totalVisits.toString();
+    document.getElementById('cafe-visits').style.display = 'block';
+  } catch (e) {
+    // Contract might not be deployed yet — show placeholder
+    document.getElementById('cafe-name').textContent = 'Partner Cafe';
+    console.warn('Could not load cafe info:', e.message);
+  }
+}
+
+// ─── WALLET CONNECT ───────────────────────────────────────────────────────────
+async function connectWallet() {
+  const btn = document.getElementById('btn-connect');
+
+  if (!window.ethereum) {
+    showMsg('error', '🦊 No wallet found. Install MetaMask or open in MiniPay.');
+    return;
+  }
+
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span>Connecting...';
+
+    // Request accounts
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    signer = provider.getSigner();
+    userAddress = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+    // Check network
+    const network = await provider.getNetwork();
+    if (network.chainId !== CELO_CHAIN_ID) {
+      document.getElementById('network-warn').style.display = 'block';
+      btn.style.display = 'none';
+      return;
+    }
+
+    await onWalletConnected();
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerHTML = 'Connect Wallet';
+    showMsg('error', e.message.includes('rejected') ? '❌ Connection cancelled.' : '❌ ' + e.message);
+  }
+}
+
+async function onWalletConnected() {
+  const btn = document.getElementById('btn-connect');
+  btn.style.display = 'none';
+
+  // Show wallet address in nav
+  document.getElementById('nav-right').innerHTML =
+    `<span style="font-size:12px;color:var(--muted);font-family:monospace">${userAddress.slice(0,6)}...${userAddress.slice(-4)}</span>`;
+
+  // Load balance
+  await refreshBalance();
+
+  // Check cooldown
+  await checkCooldown();
+
+  // Listen for account changes
+  window.ethereum.on('accountsChanged', () => window.location.reload());
+  window.ethereum.on('chainChanged', () => window.location.reload());
+}
+
+// ─── BALANCE ─────────────────────────────────────────────────────────────────
+async function refreshBalance() {
+  try {
+    const bal = await contract.balanceOf(userAddress);
+    const formatted = parseFloat(ethers.utils.formatEther(bal)).toFixed(1);
+    document.getElementById('balance-amount').textContent = `${formatted} CVT`;
+    document.getElementById('balance-card').style.display = 'flex';
+  } catch (e) {
+    console.warn('Balance fetch failed:', e.message);
+  }
+}
+
+// ─── COOLDOWN ────────────────────────────────────────────────────────────────
+async function checkCooldown() {
+  try {
+    const remaining = await contract.cooldownRemaining(userAddress, cafeAddress);
+    const secs = remaining.toNumber();
+
+    if (secs > 0) {
+      startCooldownTimer(secs);
+    } else {
+      showClaimButton();
+    }
+  } catch (e) {
+    // If contract not deployed, show claim anyway (will fail gracefully)
+    showClaimButton();
+  }
+}
+
+function startCooldownTimer(seconds) {
+  document.getElementById('cooldown-area').style.display = 'block';
+  document.getElementById('btn-claim').style.display = 'none';
+
+  let remaining = seconds;
+  function tick() {
+    if (remaining <= 0) {
+      clearInterval(cooldownTimer);
+      document.getElementById('cooldown-area').style.display = 'none';
+      showClaimButton();
+      showMsg('success', '✅ Cooldown complete! You can claim again.');
+      return;
+    }
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
+    const label = h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+      : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    document.getElementById('cooldown-ring').textContent = label;
+    remaining--;
+  }
+  tick();
+  cooldownTimer = setInterval(tick, 1000);
+}
+
+function showClaimButton() {
+  document.getElementById('btn-claim').style.display = 'block';
+  document.getElementById('cooldown-area').style.display = 'none';
+}
+
+// ─── CLAIM ───────────────────────────────────────────────────────────────────
+async function claimTokens() {
+  const btn = document.getElementById('btn-claim');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Claiming...';
+  clearMsg();
+
+  try {
+    const tx = await contract.claimVisit(cafeAddress, {
+      gasLimit: 100000
+    });
+
+    showMsg('info', '⏳ Transaction submitted. Waiting for confirmation...');
+    btn.innerHTML = '<span class="spin"></span>Confirming...';
+
+    await tx.wait();
+
+    // Success!
+    btn.style.display = 'none';
+    document.getElementById('tx-area').style.display = 'block';
+    document.getElementById('tx-link').href = `https://celoscan.io/tx/${tx.hash}`;
+    document.getElementById('tx-link').textContent = tx.hash;
+    clearMsg();
+    showMsg('success', '🎉 You earned 10 CVT tokens!');
+
+    await refreshBalance();
+    startCooldownTimer(4 * 3600);
+
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerHTML = 'Claim 10 CVT Tokens';
+
+    let errMsg = e.message || 'Unknown error';
+    if (errMsg.includes('Too soon')) {
+      errMsg = '⏰ You already claimed recently. Wait 4 hours.';
+    } else if (errMsg.includes('Max supply')) {
+      errMsg = '😱 Max supply reached! All 100M CVT distributed.';
+    } else if (errMsg.includes('Cafe not registered')) {
+      errMsg = '❌ This cafe is not registered.';
+    } else if (errMsg.includes('user rejected')) {
+      errMsg = '❌ Transaction cancelled.';
+    } else {
+      errMsg = '❌ ' + errMsg.split('(')[0].trim();
+    }
+    showMsg('error', errMsg);
+  }
+}
+
+// ─── NETWORK ─────────────────────────────────────────────────────────────────
+async function switchToCelo() {
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0xA4EC' }]
+    });
+  } catch (e) {
+    if (e.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [CELO_CHAIN]
+        });
+      } catch (e2) {
+        showMsg('error', 'Could not add Celo network. Add it manually in your wallet.');
+      }
+    }
+  }
+  window.location.reload();
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function showMsg(type, text) {
+  document.getElementById('msg-area').innerHTML =
+    `<div class="msg ${type}">${text}</div>`;
+}
+function clearMsg() {
+  document.getElementById('msg-area').innerHTML = '';
+}
+
+function showPage(type, title, text) {
+  const p = document.getElementById('page-claim');
+  p.querySelector('.claim-wrap').innerHTML = `
+    <div class="err-page">
+      <div class="emoji">${type === 'error' ? '❌' : 'ℹ️'}</div>
+      <h2>${title}</h2>
+      <p>${text}</p>
+      <br/><a href="/" style="color:var(--green)">← Home</a>
+    </div>`;
+}
+
+// ─── START ───────────────────────────────────────────────────────────────────
+route();
+initLanding();
+</script>
+</body>
+</html>

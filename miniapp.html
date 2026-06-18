@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>CryptoVisit</title>
+
+  <!-- Telegram Mini App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- TON Connect UI -->
+  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
+  <style>
+    :root {
+      --tg-bg: var(--tg-theme-bg-color, #0A1628);
+      --tg-text: var(--tg-theme-text-color, #FFFFFF);
+      --tg-hint: var(--tg-theme-hint-color, #8AA6C1);
+      --tg-btn: var(--tg-theme-button-color, #35D07F);
+      --tg-btn-text: var(--tg-theme-button-text-color, #000000);
+      --green: #35D07F;
+      --green-dark: #1A8F4E;
+      --card: #112240;
+      --border: #1E3A5F;
+      --red: #FF6B6B;
+      --yellow: #FBCC5C;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--tg-bg);
+      color: var(--tg-text);
+      min-height: 100vh;
+      padding-bottom: 32px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px 12px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+    .logo-icon { font-size: 24px; }
+    #ton-connect-btn { transform: scale(0.85); transform-origin: right center; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card); border-radius: 20px;
+      padding: 20px; margin: 0 16px 16px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── User greeting ── */
+    .greeting { text-align: center; padding: 8px 16px 16px; }
+    .greeting .avatar { font-size: 48px; margin-bottom: 8px; }
+    .greeting h2 { font-size: 20px; font-weight: 700; }
+    .greeting p { font-size: 14px; color: var(--tg-hint); margin-top: 4px; }
+
+    /* ── Cafe info ── */
+    .cafe-header { text-align: center; }
+    .cafe-emoji { font-size: 44px; margin-bottom: 10px; }
+    .cafe-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .cafe-id { font-size: 11px; color: var(--tg-hint); font-family: monospace; }
+    .cafe-visits { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; color: var(--tg-hint); }
+    .cafe-visits strong { color: var(--green); }
+
+    /* ── Reward badge ── */
+    .reward {
+      background: linear-gradient(135deg, #0D3D24, #133528);
+      border: 1px solid var(--green-dark);
+      border-radius: 16px; padding: 16px; margin: 0 16px 16px;
+      text-align: center;
+    }
+    .reward-big { font-size: 52px; font-weight: 800; color: var(--green); line-height: 1; }
+    .reward-label { font-size: 14px; color: var(--tg-hint); margin-top: 4px; }
+
+    /* ── Balance ── */
+    .balance-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .balance-row .lbl { font-size: 13px; color: var(--tg-hint); }
+    .balance-row .val { font-size: 22px; font-weight: 700; color: var(--green); }
+
+    /* ── Cooldown ── */
+    .cooldown-wrap { text-align: center; margin: 0 16px 16px; }
+    .cooldown-ring {
+      width: 96px; height: 96px; border-radius: 50%;
+      border: 4px solid var(--border); border-top-color: var(--yellow);
+      margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px; color: var(--yellow);
+      animation: spin 4s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .cooldown-wrap p { font-size: 13px; color: var(--tg-hint); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: block; width: calc(100% - 32px); margin: 0 16px 12px;
+      padding: 16px; border-radius: 16px; border: none;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--tg-btn); color: var(--tg-btn-text); }
+    .btn-primary:active:not(:disabled) { opacity: 0.85; }
+    .btn-secondary {
+      background: transparent; color: var(--tg-text);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Messages ── */
+    .msg {
+      margin: 0 16px 12px; padding: 12px 16px;
+      border-radius: 12px; font-size: 14px; text-align: center; line-height: 1.5;
+    }
+    .msg.success { background: #0D3D2450; border: 1px solid var(--green); color: var(--green); }
+    .msg.error   { background: #3D0D0D50; border: 1px solid var(--red);   color: var(--red);   }
+    .msg.info    { background: #11224099; border: 1px solid var(--border); color: var(--tg-hint); }
+
+    /* ── Landing (no cafe) ── */
+    .landing { padding: 24px 16px; }
+    .landing h1 { font-size: 28px; font-weight: 800; line-height: 1.3; margin-bottom: 12px; }
+    .landing h1 span { color: var(--green); }
+    .landing p { color: var(--tg-hint); font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+    .step-row { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+    .step-num { min-width: 36px; height: 36px; background: var(--card); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--green); }
+    .step-text h3 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+    .step-text p { font-size: 13px; color: var(--tg-hint); }
+
+    /* ── TX ── */
+    .tx-hash { font-family: monospace; font-size: 11px; color: var(--tg-hint); word-break: break-all; margin-top: 6px; }
+    .tx-hash a { color: var(--green); }
+
+    /* ── Spinner ── */
+    .spin-inline {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(0,0,0,0.3); border-top-color: #000;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+
+    /* ── Hidden ── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="logo">
+    <span class="logo-icon">☕</span>
+    CryptoVisit
+  </div>
+  <div id="ton-connect-btn"></div>
+</div>
+
+<!-- ══════════ LANDING (no cafe param) ══════════ -->
+<div id="view-landing" class="hidden">
+  <div class="landing">
+    <h1>Earn <span>CVT tokens</span> at cafes</h1>
+    <p>Find a hidden QR code in a partner cafe, scan it, and get 10 CVT tokens directly in your TON wallet.</p>
+
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        <h3>Find the QR code</h3>
+        <p>Look for a hidden QR somewhere in the cafe</p>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        <h3>Open this Mini App</h3>
+        <p>QR links directly here inside Telegram</p>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        <h3>Connect TON wallet</h3>
+        <p>Tonkeeper, TON Space, or any TON wallet</p>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-text">
+        <h3>Claim 10 CVT</h3>
+        <p>Tokens land in your wallet. Come back every 4 hours!</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="text-align:center">
+    <div style="font-size:13px;color:var(--tg-hint);margin-bottom:4px">Total supply (fixed forever)</div>
+    <div style="font-size:28px;font-weight:800;color:var(--green)">100,000,000 CVT</div>
+    <div style="font-size:12px;color:var(--tg-hint);margin-top:8px">Built on TON blockchain · Telegram Mini App</div>
+  </div>
+</div>
+
+<!-- ══════════ CLAIM VIEW ══════════ -->
+<div id="view-claim" class="hidden">
+
+  <!-- User greeting -->
+  <div class="greeting" id="greeting">
+    <div class="avatar">👋</div>
+    <h2 id="user-name">Welcome!</h2>
+    <p id="user-sub">Connect wallet to claim tokens</p>
+  </div>
+
+  <!-- Cafe card -->
+  <div class="card">
+    <div class="cafe-header">
+      <div class="cafe-emoji">☕</div>
+      <div class="cafe-name" id="cafe-name">Partner Cafe</div>
+      <div class="cafe-id" id="cafe-id"></div>
+      <div class="cafe-visits" id="cafe-visits" style="display:none">
+        Total visits: <strong id="total-visits">0</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reward -->
+  <div class="reward">
+    <div class="reward-big">+10</div>
+    <div class="reward-label">CVT tokens per visit · on TON</div>
+  </div>
+
+  <!-- Balance -->
+  <div class="card hidden" id="balance-card">
+    <div class="balance-row">
+      <div>
+        <div class="lbl">Your CVT Balance</div>
+        <div class="val" id="balance-val">0 CVT</div>
+      </div>
+      <div style="font-size:28px">🏆</div>
+    </div>
+  </div>
+
+  <!-- Cooldown -->
+  <div class="cooldown-wrap hidden" id="cooldown-wrap">
+    <div class="cooldown-ring" id="cooldown-ring">--:--</div>
+    <p>Come back soon for more tokens</p>
+  </div>
+
+  <!-- Messages -->
+  <div id="msg-area"></div>
+
+  <!-- TX result -->
+  <div id="tx-area" class="hidden">
+    <div class="msg success">
+      🎉 You claimed 10 CVT!
+      <div class="tx-hash"><a id="tx-link" href="#" target="_blank"></a></div>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <button class="btn btn-primary" id="btn-connect" onclick="connectWallet()">
+    Connect TON Wallet
+  </button>
+  <button class="btn btn-primary hidden" id="btn-claim" onclick="claimTokens()">
+    Claim 10 CVT Tokens
+  </button>
+
+</div>
+
+<!-- ══════════ SCRIPT ══════════ -->
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// Replace after deployment
+const CONTRACT_ADDRESS = "EQD__REPLACE_WITH_YOUR_CONTRACT_ADDRESS";
+const MANIFEST_URL     = "https://YOUR_GITHUB_USERNAME.github.io/cryptovisit/tonconnect-manifest.json";
+
+// ─── TELEGRAM INIT ───────────────────────────────────────────────────────────
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// Apply Telegram theme colors to CSS
+document.documentElement.style.setProperty('--tg-bg',       tg.themeParams.bg_color       || '#0A1628');
+document.documentElement.style.setProperty('--tg-text',     tg.themeParams.text_color     || '#FFFFFF');
+document.documentElement.style.setProperty('--tg-hint',     tg.themeParams.hint_color     || '#8AA6C1');
+document.documentElement.style.setProperty('--tg-btn',      tg.themeParams.button_color   || '#35D07F');
+document.documentElement.style.setProperty('--tg-btn-text', tg.themeParams.button_text_color || '#000000');
+
+// Get Telegram user
+const tgUser = tg.initDataUnsafe?.user;
+
+// Get cafe ID from URL (start_param passed via QR deep link)
+// QR encodes: https://t.me/YourBot?start=cafe_12345
+const startParam = tg.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get('cafe');
+const cafeId     = startParam ? parseInt(startParam.replace('cafe_', '')) : null;
+
+// ─── TON CONNECT ─────────────────────────────────────────────────────────────
+const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+  manifestUrl: MANIFEST_URL,
+  buttonRootId: 'ton-connect-btn'
+});
+
+let walletAddress = null;
+let cooldownTimer = null;
+
+// ─── ROUTE ───────────────────────────────────────────────────────────────────
+function init() {
+  if (cafeId) {
+    show('view-claim');
+    initClaimView();
+  } else {
+    show('view-landing');
+  }
+}
+
+// ─── CLAIM VIEW INIT ─────────────────────────────────────────────────────────
+async function initClaimView() {
+  // Show Telegram user greeting
+  if (tgUser) {
+    const name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ');
+    document.getElementById('user-name').textContent = `Hey, ${name}! 👋`;
+    document.getElementById('user-sub').textContent  = tgUser.username ? `@${tgUser.username}` : 'Connect wallet to claim';
+  }
+
+  // Show cafe ID
+  document.getElementById('cafe-id').textContent = `Cafe #${cafeId}`;
+
+  // Load cafe info from contract
+  await loadCafeInfo();
+
+  // Listen for wallet connection
+  tonConnectUI.onStatusChange(async (wallet) => {
+    if (wallet) {
+      walletAddress = wallet.account.address;
+      hide('btn-connect');
+      await onWalletConnected();
+    } else {
+      walletAddress = null;
+      show('btn-connect');
+      hide('btn-claim');
+      hide('balance-card');
+    }
+  });
+
+  // Check if already connected
+  if (tonConnectUI.wallet) {
+    walletAddress = tonConnectUI.wallet.account.address;
+    hide('btn-connect');
+    await onWalletConnected();
+  }
+}
+
+async function loadCafeInfo() {
+  // In production: query contract via TON API
+  // For MVP we show the cafeId and fetch from TON Center API
+  try {
+    const res = await fetch(
+      `https://toncenter.com/api/v2/runGetMethod?address=${encodeURIComponent(CONTRACT_ADDRESS)}` +
+      `&method=cafeInfo&stack=[["num","${cafeId}"]]`
+    );
+    const data = await res.json();
+    if (data.ok && data.result?.stack?.[0]) {
+      // Parse response — stack[1] = name (hex string), stack[2] = totalVisits
+      const stack = data.result.stack;
+      if (stack[0][0] === 'cell') {
+        // Name is in second cell of the tuple
+        // Simplified: just show cafe id for now
+        const visits = stack[2] ? parseInt(stack[2][1], 16) : 0;
+        document.getElementById('total-visits').textContent = visits;
+        document.getElementById('cafe-visits').style.display = 'block';
+      }
+    }
+  } catch(e) {
+    // Offline or contract not deployed yet — show placeholder
+    console.log('Cafe info not available:', e.message);
+  }
+}
+
+// ─── WALLET CONNECTED ────────────────────────────────────────────────────────
+async function onWalletConnected() {
+  document.getElementById('user-sub').textContent =
+    walletAddress.slice(0, 6) + '...' + walletAddress.slice(-4);
+
+  await loadBalance();
+  await checkCooldown();
+}
+
+async function loadBalance() {
+  try {
+    const res = await fetch(
+      `https://toncenter.com/api/v2/runGetMethod?address=${encodeURIComponent(CONTRACT_ADDRESS)}` +
+      `&method=balance&stack=[["tvm.Slice","${walletAddress}"]]`
+    );
+    const data = await res.json();
+    if (data.ok && data.result?.stack?.[0]) {
+      const bal = parseInt(data.result.stack[0][1], 16) || 0;
+      document.getElementById('balance-val').textContent = `${bal} CVT`;
+      show('balance-card');
+    }
+  } catch(e) {
+    show('balance-card'); // show with 0
+  }
+}
+
+async function checkCooldown() {
+  try {
+    const res = await fetch(
+      `https://toncenter.com/api/v2/runGetMethod?address=${encodeURIComponent(CONTRACT_ADDRESS)}` +
+      `&method=cooldownRemaining&stack=[["tvm.Slice","${walletAddress}"],["num","${cafeId}"]]`
+    );
+    const data = await res.json();
+    if (data.ok && data.result?.stack?.[0]) {
+      const remaining = parseInt(data.result.stack[0][1], 16) || 0;
+      if (remaining > 0) {
+        startCooldown(remaining);
+        return;
+      }
+    }
+  } catch(e) { /* show claim button */ }
+  showClaimBtn();
+}
+
+// ─── COOLDOWN TIMER ──────────────────────────────────────────────────────────
+function startCooldown(seconds) {
+  show('cooldown-wrap');
+  hide('btn-claim');
+  let rem = seconds;
+  function tick() {
+    if (rem <= 0) {
+      clearInterval(cooldownTimer);
+      hide('cooldown-wrap');
+      showClaimBtn();
+      showMsg('success', '✅ Cooldown done! Claim again.');
+      return;
+    }
+    const h = Math.floor(rem / 3600);
+    const m = Math.floor((rem % 3600) / 60);
+    const s = rem % 60;
+    document.getElementById('cooldown-ring').textContent =
+      h > 0
+        ? `${h}:${pad(m)}:${pad(s)}`
+        : `${pad(m)}:${pad(s)}`;
+    rem--;
+  }
+  tick();
+  cooldownTimer = setInterval(tick, 1000);
+}
+
+function showClaimBtn() {
+  show('btn-claim');
+  hide('cooldown-wrap');
+}
+
+// ─── CONNECT WALLET ──────────────────────────────────────────────────────────
+async function connectWallet() {
+  try {
+    await tonConnectUI.openModal();
+  } catch(e) {
+    showMsg('error', '❌ ' + e.message);
+  }
+}
+
+// ─── CLAIM TOKENS ────────────────────────────────────────────────────────────
+async function claimTokens() {
+  const btn = document.getElementById('btn-claim');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-inline"></span>Sending...';
+  clearMsg();
+
+  try {
+    // Build ClaimVisit message payload
+    // op = 0x03, cafeId = uint64
+    const payload = buildClaimPayload(cafeId);
+
+    const result = await tonConnectUI.sendTransaction({
+      validUntil: Math.floor(Date.now() / 1000) + 300, // 5 min
+      messages: [{
+        address: CONTRACT_ADDRESS,
+        amount:  '50000000', // 0.05 TON for gas
+        payload: payload
+      }]
+    });
+
+    // Transaction sent (boc returned)
+    hide('btn-claim');
+    show('tx-area');
+    const txHash = result.boc ? btoa(result.boc).slice(0, 20) + '...' : 'submitted';
+    document.getElementById('tx-link').textContent  = 'View on Tonscan →';
+    document.getElementById('tx-link').href         = `https://tonscan.org/`;
+    showMsg('success', '🎉 +10 CVT on the way! Blockchain confirms in seconds.');
+    tg.HapticFeedback?.notificationOccurred('success');
+
+    // Refresh balance after 5s
+    setTimeout(async () => {
+      await loadBalance();
+      startCooldown(4 * 3600);
+    }, 5000);
+
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = 'Claim 10 CVT Tokens';
+    const msg = e.message || '';
+    if (msg.includes('reject') || msg.includes('cancel')) {
+      showMsg('info', '↩️ Cancelled');
+    } else {
+      showMsg('error', '❌ ' + msg.split('\n')[0]);
+    }
+  }
+}
+
+// Build TL-B payload for ClaimVisit message
+// message(0x03) ClaimVisit { cafeId: Int as uint64; }
+function buildClaimPayload(cafeId) {
+  // Cell: 32-bit op (0x03) + 64-bit cafeId
+  // Encode as base64 BOC
+  // For now use a hex builder (simplified)
+  // In production use @ton/ton TonClient to build properly
+  const buf = new Uint8Array(12);
+  const view = new DataView(buf.buffer);
+  view.setUint32(0, 0x03);              // op code
+  view.setBigUint64(4, BigInt(cafeId)); // cafeId uint64
+  return btoa(String.fromCharCode(...buf));
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function show(id) { document.getElementById(id)?.classList.remove('hidden'); }
+function hide(id) { document.getElementById(id)?.classList.add('hidden');    }
+function pad(n)   { return String(n).padStart(2, '0'); }
+
+function showMsg(type, text) {
+  document.getElementById('msg-area').innerHTML =
+    `<div class="msg ${type}">${text}</div>`;
+}
+function clearMsg() {
+  document.getElementById('msg-area').innerHTML = '';
+}
+
+// ─── START ───────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
