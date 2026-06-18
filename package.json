@@ -1,0 +1,24 @@
+{
+    "name": "tonflow",
+    "version": "0.1.0",
+    "description": "DCA & Limit Orders Mini App on TON — STON.fi SDK integration",
+    "scripts": {
+        "build": "blueprint build",
+        "test": "blueprint test",
+        "deploy": "blueprint run",
+        "deploy:testnet": "blueprint run --testnet"
+    },
+    "dependencies": {
+        "@ton/core": "^0.56.3",
+        "@ton/ton": "^13.9.0",
+        "@ton/crypto": "^3.2.0",
+        "@tact-lang/compiler": "^1.5.0"
+    },
+    "devDependencies": {
+        "@ton/blueprint": "^0.20.0",
+        "@ton/sandbox": "^0.21.0",
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0",
+        "ts-node": "^10.9.0"
+    }
+}
