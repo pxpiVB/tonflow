@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>TonFlow</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://unpkg.com/@tonconnect/ui@2.0.0-beta.6/dist/tonconnect-ui.min.js"></script>
+  <style>
+    :root {
+      --bg:       var(--tg-theme-bg-color,       #0E1621);
+      --bg2:      var(--tg-theme-secondary-bg-color, #17212B);
+      --text:     var(--tg-theme-text-color,      #FFFFFF);
+      --hint:     var(--tg-theme-hint-color,      #708499);
+      --btn:      var(--tg-theme-button-color,    #2EA6FF);
+      --btn-text: var(--tg-theme-button-text-color,#FFFFFF);
+      --accent:   #2EA6FF;
+      --green:    #35D07F;
+      --red:      #FF6B6B;
+      --card:     #17212B;
+      --border:   #232E3C;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    #connect-btn {
+      background: var(--accent);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #connect-btn.connected {
+      background: var(--border);
+      font-size: 11px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1;
+      padding: 12px 0;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--hint);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Content */
+    .content { padding: 16px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Price ticker */
+    .price-bar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .price-label { font-size: 12px; color: var(--hint); }
+    .price-value { font-size: 20px; font-weight: 700; }
+    .price-change { font-size: 12px; font-weight: 600; }
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+
+    /* Form */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .form-row { margin-bottom: 12px; }
+    .form-label {
+      font-size: 12px;
+      color: var(--hint);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .form-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    select.form-input { cursor: pointer; }
+
+    /* Interval selector */
+    .interval-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .interval-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--hint);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .interval-btn.active {
+      background: rgba(46, 166, 255, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Summary */
+    .summary {
+      background: rgba(46, 166, 255, 0.08);
+      border: 1px solid rgba(46, 166, 255, 0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--hint);
+    }
+    .summary strong { color: var(--text); }
+
+    /* Submit button */
+    .submit-btn {
+      width: 100%;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .submit-btn:active:not(:disabled) { opacity: 0.8; }
+
+    /* Orders list */
+    .order-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .order-type {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .type-dca { background: rgba(46,166,255,0.15); color: var(--accent); }
+    .type-limit { background: rgba(53,208,127,0.15); color: var(--green); }
+    .order-pair { font-size: 15px; font-weight: 700; }
+    .order-detail { font-size: 12px; color: var(--hint); margin-top: 4px; }
+    .badge-active { color: var(--green); font-size: 11px; font-weight: 600; }
+    .badge-done { color: var(--hint); font-size: 11px; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--hint);
+      font-size: 14px;
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    TonFlow
+  </div>
+  <button id="connect-btn" onclick="toggleConnect()">Connect Wallet</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('dca')">⟳ DCA</div>
+  <div class="tab" onclick="switchTab('limit')">⚡ Limit</div>
+  <div class="tab" onclick="switchTab('orders')">📋 My Orders</div>
+</div>
+
+<div class="content">
+
+  <!-- ─── DCA TAB ─── -->
+  <div id="tab-dca" class="tab-panel active">
+    <div class="price-bar">
+      <div>
+        <div class="price-label" id="dca-price-label">TON / USDT</div>
+        <div class="price-value" id="dca-price">—</div>
+      </div>
+      <div class="price-change up" id="dca-price-change"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Token Pair</div>
+      <div class="form-row">
+        <label class="form-label">Sell</label>
+        <select class="form-input" id="dca-token-in" onchange="updateDCASummary(); fetchPrice('dca')">
+          <option value="ton">TON (Native)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Buy</label>
+        <select class="form-input" id="dca-token-out" onchange="updateDCASummary(); fetchPrice('dca')">
+          <option value="EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO">STON</option>
+          <option value="EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT">NOT (Notcoin)</option>
+          <option value="EQCvxJy4eG8hyHBFsZ7eePxrRsUQSFE_jpptRAYBmcG_DOGS">DOGS</option>
+          <option value="EQBlqsm144Dq6SjbPI4jjZvA1hqTIP3CvHovbIfW_t-SCALE">SCALE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Order Settings</div>
+      <div class="form-row">
+        <label class="form-label">Amount per execution (TON)</label>
+        <input type="number" class="form-input" id="dca-amount" placeholder="1.0" min="0.1" step="0.1"
+               oninput="updateDCASummary()"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Interval</label>
+        <div class="interval-grid">
+          <div class="interval-btn active" onclick="setInterval('dca', this, 3600)">Hourly</div>
+          <div class="interval-btn" onclick="setInterval('dca', this, 86400)">Daily</div>
+          <div class="interval-btn" onclick="setInterval('dca', this, 604800)">Weekly</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Number of executions</label>
+        <input type="number" class="form-input" id="dca-executions" placeholder="10" min="1" max="100"
+               oninput="updateDCASummary()"/>
+      </div>
+    </div>
+
+    <div class="summary" id="dca-summary">
+      Fill in the form to see order summary.
+    </div>
+
+    <button class="submit-btn" id="dca-submit" onclick="submitDCA()">
+      Create DCA Order
+    </button>
+  </div>
+
+  <!-- ─── LIMIT TAB ─── -->
+  <div id="tab-limit" class="tab-panel">
+    <div class="price-bar">
+      <div>
+        <div class="price-label" id="limit-price-label">TON / USDT</div>
+        <div class="price-value" id="limit-price">—</div>
+      </div>
+      <div class="price-change up" id="limit-price-change"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Token Pair</div>
+      <div class="form-row">
+        <label class="form-label">Sell</label>
+        <select class="form-input" id="limit-token-in" onchange="fetchPrice('limit')">
+          <option value="ton">TON (Native)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Buy</label>
+        <select class="form-input" id="limit-token-out" onchange="fetchPrice('limit')">
+          <option value="EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO">STON</option>
+          <option value="EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT">NOT (Notcoin)</option>
+          <option value="EQCvxJy4eG8hyHBFsZ7eePxrRsUQSFE_jpptRAYBmcG_DOGS">DOGS</option>
+          <option value="EQBlqsm144Dq6SjbPI4jjZvA1hqTIP3CvHovbIfW_t-SCALE">SCALE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Order Settings</div>
+      <div class="form-row">
+        <label class="form-label">Amount to sell (TON)</label>
+        <input type="number" class="form-input" id="limit-amount" placeholder="5.0" min="0.1" step="0.1"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Target price (tokens per TON)</label>
+        <input type="number" class="form-input" id="limit-target-price" placeholder="e.g. 10.5" min="0" step="any"/>
+      </div>
+      <div style="font-size:12px;color:var(--hint);margin-top:-6px;">
+        Current price: <span id="limit-current-hint">—</span>
+      </div>
+    </div>
+
+    <div class="summary" id="limit-summary">
+      Fill in the form to see order summary.
+    </div>
+
+    <button class="submit-btn" id="limit-submit" onclick="submitLimit()">
+      Create Limit Order
+    </button>
+  </div>
+
+  <!-- ─── ORDERS TAB ─── -->
+  <div id="tab-orders" class="tab-panel">
+    <div id="orders-list">
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div>No orders yet.<br/>Create a DCA or Limit order to get started.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { beginCell, Address, toNano } from 'https://esm.sh/@ton/core@0.59.0';
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+const CONTRACT_ADDRESS = 'EQCPEPIfDWXfLx6px3b2awzDiAEgfTWlZ_IkZSzDAyP6ASCV'; // TonFlow testnet
+const MANIFEST_URL = 'https://pxpivb.github.io/tonflow/tonconnect-manifest.json';
+const STONFI_API = 'https://api.ston.fi/v1';
+
+const TOKEN_NAMES = {
+  'ton': 'TON',
+  'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO': 'STON',
+  'EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT': 'NOT',
+  'EQCvxJy4eG8hyHBFsZ7eePxrRsUQSFE_jpptRAYBmcG_DOGS': 'DOGS',
+  'EQBlqsm144Dq6SjbPI4jjZvA1hqTIP3CvHovbIfW_t-SCALE': 'SCALE',
+};
+
+// pTON address for mainnet STON.fi API calls
+const PTON_ADDRESS = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c';
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let tonConnect = null;
+let walletAddress = null;
+let dcaInterval = 3600; // default: hourly
+let orders = JSON.parse(localStorage.getItem('tf_orders') || '[]');
+
+// ─── Telegram Init ────────────────────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// ─── TON Connect ──────────────────────────────────────────────────────────────
+tonConnect = new TON_CONNECT_UI.TonConnectUI({
+  manifestUrl: MANIFEST_URL,
+  buttonRootId: null,
+});
+
+tonConnect.onStatusChange(wallet => {
+  if (wallet) {
+    walletAddress = wallet.account.address;
+    const short = walletAddress.slice(0, 6) + '…' + walletAddress.slice(-4);
+    const btn = document.getElementById('connect-btn');
+    btn.textContent = short;
+    btn.classList.add('connected');
+  } else {
+    walletAddress = null;
+    const btn = document.getElementById('connect-btn');
+    btn.textContent = 'Connect Wallet';
+    btn.classList.remove('connected');
+  }
+});
+
+window.toggleConnect = async () => {
+  if (walletAddress) {
+    await tonConnect.disconnect();
+  } else {
+    await tonConnect.openModal();
+  }
+};
+
+// ─── Price Fetching ───────────────────────────────────────────────────────────
+window.fetchPrice = async (tab) => {
+  const outEl = document.getElementById(`${tab}-token-out`);
+  const askAddr = outEl?.value;
+  if (!askAddr) return;
+
+  try {
+    const units = '1000000000'; // 1 TON
+    const url = `${STONFI_API}/swap/simulate?offer_address=${PTON_ADDRESS}&ask_address=${askAddr}&units=${units}&slippage_tolerance=0.01`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+
+    const askUnits = BigInt(data.ask_units ?? data.minAskUnits ?? 0);
+    const priceFloat = Number(askUnits) / 1e9;
+    const tokenName = TOKEN_NAMES[askAddr] || 'TOKEN';
+
+    document.getElementById(`${tab}-price-label`).textContent = `TON → ${tokenName}`;
+    document.getElementById(`${tab}-price`).textContent = priceFloat.toFixed(4) + ` ${tokenName}`;
+
+    if (tab === 'limit') {
+      document.getElementById('limit-current-hint').textContent =
+        `${priceFloat.toFixed(4)} ${tokenName} per TON`;
+    }
+    if (tab === 'dca') updateDCASummary();
+  } catch {
+    document.getElementById(`${tab}-price`).textContent = 'N/A (mainnet only)';
+  }
+};
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+window.switchTab = (name) => {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['dca','limit','orders'][i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'orders') renderOrders();
+  if (name === 'dca') fetchPrice('dca');
+  if (name === 'limit') fetchPrice('limit');
+};
+
+// ─── Interval selector ────────────────────────────────────────────────────────
+window.setInterval = (tab, el, seconds) => {
+  document.querySelectorAll(`#tab-${tab} .interval-btn`).forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (tab === 'dca') { dcaInterval = seconds; updateDCASummary(); }
+};
+
+// ─── DCA Summary ──────────────────────────────────────────────────────────────
+window.updateDCASummary = () => {
+  const amount = parseFloat(document.getElementById('dca-amount').value) || 0;
+  const executions = parseInt(document.getElementById('dca-executions').value) || 0;
+  const tokenOut = document.getElementById('dca-token-out').value;
+  const tokenName = TOKEN_NAMES[tokenOut] || 'TOKEN';
+
+  if (!amount || !executions) {
+    document.getElementById('dca-summary').innerHTML = 'Fill in the form to see order summary.';
+    return;
+  }
+
+  const intervalText = dcaInterval === 3600 ? 'hourly' :
+                       dcaInterval === 86400 ? 'daily' : 'weekly';
+  const total = (amount * executions).toFixed(2);
+  const durationDays = Math.ceil(dcaInterval * executions / 86400);
+
+  document.getElementById('dca-summary').innerHTML =
+    `Buy <strong>${tokenName}</strong> with <strong>${amount} TON</strong> ${intervalText}<br/>
+     <strong>${executions}</strong> times · total <strong>${total} TON</strong> · ~${durationDays} days`;
+};
+
+// ─── Build Cell Helpers ───────────────────────────────────────────────────────
+function buildCreateDCA(tokenIn, tokenOut, amountIn, interval, executions) {
+  // tokenIn: 'ton' means we use zero address placeholder
+  const inAddr  = tokenIn === 'ton'
+    ? Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c')
+    : Address.parse(tokenIn);
+  const outAddr = Address.parse(tokenOut);
+
+  return beginCell()
+    .storeUint(0x10, 32)
+    .storeAddress(inAddr)
+    .storeAddress(outAddr)
+    .storeCoins(toNano(amountIn.toString()))
+    .storeUint(interval, 32)
+    .storeUint(executions, 32)
+    .endCell();
+}
+
+function buildCreateLimitOrder(tokenIn, tokenOut, amountIn, targetPrice) {
+  const inAddr  = tokenIn === 'ton'
+    ? Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c')
+    : Address.parse(tokenIn);
+  const outAddr = Address.parse(tokenOut);
+
+  // targetPrice scaled by 1e9 as uint256
+  const priceScaled = BigInt(Math.floor(targetPrice * 1e9));
+
+  return beginCell()
+    .storeUint(0x20, 32)
+    .storeAddress(inAddr)
+    .storeAddress(outAddr)
+    .storeCoins(toNano(amountIn.toString()))
+    .storeUint(priceScaled, 256)
+    .endCell();
+}
+
+// ─── Submit DCA ───────────────────────────────────────────────────────────────
+window.submitDCA = async () => {
+  if (!walletAddress) { showToast('Connect wallet first'); return; }
+
+  const amount = parseFloat(document.getElementById('dca-amount').value);
+  const executions = parseInt(document.getElementById('dca-executions').value);
+  const tokenIn  = document.getElementById('dca-token-in').value;
+  const tokenOut = document.getElementById('dca-token-out').value;
+
+  if (!amount || amount < 0.1) { showToast('Min amount: 0.1 TON'); return; }
+  if (!executions || executions < 1) { showToast('Min executions: 1'); return; }
+
+  try {
+    const cell = buildCreateDCA(tokenIn, tokenOut, amount, dcaInterval, executions);
+    const boc  = cell.toBoc().toString('base64');
+
+    await tonConnect.sendTransaction({
+      validUntil: Math.floor(Date.now() / 1000) + 600,
+      messages: [{
+        address: CONTRACT_ADDRESS,
+        amount: toNano((amount + 0.05).toString()).toString(), // amount + gas
+        payload: boc,
+      }],
+    });
+
+    // Save to local orders
+    const tokenName = TOKEN_NAMES[tokenOut] || tokenOut.slice(0, 6);
+    orders.unshift({
+      id: Date.now(),
+      type: 'dca',
+      pair: `TON → ${tokenName}`,
+      amount,
+      interval: dcaInterval,
+      executions,
+      executed: 0,
+      active: true,
+      createdAt: new Date().toLocaleDateString(),
+    });
+    localStorage.setItem('tf_orders', JSON.stringify(orders));
+
+    showToast('✅ DCA order created!');
+    document.getElementById('dca-amount').value = '';
+    document.getElementById('dca-executions').value = '';
+    updateDCASummary();
+
+  } catch (e) {
+    if (e.message?.includes('User rejects')) showToast('Cancelled');
+    else showToast('Error: ' + (e.message || 'unknown'));
+  }
+};
+
+// ─── Submit Limit ─────────────────────────────────────────────────────────────
+window.submitLimit = async () => {
+  if (!walletAddress) { showToast('Connect wallet first'); return; }
+
+  const amount = parseFloat(document.getElementById('limit-amount').value);
+  const targetPrice = parseFloat(document.getElementById('limit-target-price').value);
+  const tokenIn  = document.getElementById('limit-token-in').value;
+  const tokenOut = document.getElementById('limit-token-out').value;
+
+  if (!amount || amount < 0.1) { showToast('Min amount: 0.1 TON'); return; }
+  if (!targetPrice || targetPrice <= 0) { showToast('Enter target price'); return; }
+
+  try {
+    const cell = buildCreateLimitOrder(tokenIn, tokenOut, amount, targetPrice);
+    const boc  = cell.toBoc().toString('base64');
+
+    await tonConnect.sendTransaction({
+      validUntil: Math.floor(Date.now() / 1000) + 600,
+      messages: [{
+        address: CONTRACT_ADDRESS,
+        amount: toNano((amount + 0.05).toString()).toString(),
+        payload: boc,
+      }],
+    });
+
+    const tokenName = TOKEN_NAMES[tokenOut] || tokenOut.slice(0, 6);
+    orders.unshift({
+      id: Date.now(),
+      type: 'limit',
+      pair: `TON → ${tokenName}`,
+      amount,
+      targetPrice,
+      active: true,
+      createdAt: new Date().toLocaleDateString(),
+    });
+    localStorage.setItem('tf_orders', JSON.stringify(orders));
+
+    showToast('✅ Limit order created!');
+    document.getElementById('limit-amount').value = '';
+    document.getElementById('limit-target-price').value = '';
+
+  } catch (e) {
+    if (e.message?.includes('User rejects')) showToast('Cancelled');
+    else showToast('Error: ' + (e.message || 'unknown'));
+  }
+};
+
+// ─── Orders Render ────────────────────────────────────────────────────────────
+window.renderOrders = () => {
+  const container = document.getElementById('orders-list');
+  if (!orders.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div>
+      <div>No orders yet.<br/>Create a DCA or Limit order to get started.</div></div>`;
+    return;
+  }
+  container.innerHTML = orders.map(o => {
+    const badge = o.active
+      ? `<span class="badge-active">● Active</span>`
+      : `<span class="badge-done">Done</span>`;
+    const detail = o.type === 'dca'
+      ? `${o.amount} TON × ${o.executions}× · ${o.executed || 0} executed`
+      : `${o.amount} TON @ ${o.targetPrice} target`;
+    return `<div class="order-card">
+      <div class="order-header">
+        <span class="order-type ${o.type === 'dca' ? 'type-dca' : 'type-limit'}">
+          ${o.type.toUpperCase()}
+        </span>
+        ${badge}
+      </div>
+      <div class="order-pair">${o.pair}</div>
+      <div class="order-detail">${detail} · ${o.createdAt}</div>
+    </div>`;
+  }).join('');
+};
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+window.showToast = (msg) => {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+};
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+fetchPrice('dca');
+</script>
+</body>
+</html>
